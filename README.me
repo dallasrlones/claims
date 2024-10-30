@@ -1,0 +1,224 @@
+Claim Process Service
+
+Overview
+
+Claim Process is a dockerized FastAPI service designed to process insurance claims. It transforms JSON payloads representing individual claims with multiple procedures, stores them in a PostgreSQL database, computes net fees, and communicates with a downstream Payments service for further processing. Additionally, it provides an endpoint to retrieve the top 10 provider NPIs by net fees generated.
+
+Features
+
+Dockerized Setup: Easily deployable using Docker Compose.
+API Endpoints:
+POST /claims/: Submit a new claim.
+GET /claims/top-npis/: Retrieve the top 10 provider NPIs by net fees.
+Data Validation: Ensures that submitted procedures and provider NPIs adhere to specified formats.
+Asynchronous Processing: Utilizes ARQ for background task processing.
+Testing Strategy: Manual testing using curl commands and automated testing with Pytest.
+Requirements
+
+Claim Processing:
+Transforms a JSON payload representing a single claim with multiple procedures.
+Stores the transformed data into a PostgreSQL database.
+Generates a unique ID per claim.
+Computes the “net fee” using the formula:
+sql
+Copy code
+net fee = provider fees + member coinsurance + member copay - Allowed fees
+Downstream Service Communication:
+Communicates the computed “net fee” to a downstream Payments service.
+API Endpoint for Reporting:
+Implements an endpoint to retrieve the top 10 provider NPIs by net fees generated.
+Optimized for performance with a rate limiter (e.g., 10 requests per minute).
+Data Validation:
+Submitted Procedure: Must begin with the letter ‘D’.
+Provider NPI: Must be a 10-digit number.
+All fields except “quadrant” are required.
+Dockerization:
+Uses Docker Compose to orchestrate services, including the database and the web service.
+Setup & Installation
+
+Prerequisites
+
+Docker installed on your machine.
+Docker Compose installed.
+Steps
+
+Clone the Repository:
+
+bash
+Copy code
+git clone https://github.com/yourusername/claim_process.git
+cd claim_process
+Build and Start Services:
+
+bash
+Copy code
+docker-compose up --build -d
+This command builds the Docker images and starts the following services:
+
+db: PostgreSQL database.
+redis: Redis server for background task processing.
+app: FastAPI application.
+worker: ARQ worker for processing background tasks.
+Verify Services:
+
+Ensure all services are running:
+
+bash
+Copy code
+docker-compose ps
+You should see all services (db, redis, app, worker) in a healthy state.
+
+API Endpoints
+
+Submit a Claim
+
+Endpoint:
+
+POST /claims/
+
+Description:
+
+Submits a new insurance claim with multiple procedures.
+
+Headers:
+
+Content-Type: application/json
+Request Body:
+
+json
+Copy code
+{
+  "claim_number": "123456",
+  "plan_group": "GRP-1000",
+  "subscriber_number": "3730189502",
+  "procedures": [
+    {
+      "service_date": "2024-10-29T10:00:00",
+      "submitted_procedure": "D0120",
+      "provider_npi": "1497775530",
+      "provider_fees": 100.0,
+      "allowed_fees": 80.0,
+      "member_coinsurance": 10.0,
+      "member_copay": 5.0
+    }
+  ]
+}
+cURL Example:
+
+bash
+Copy code
+curl -X POST http://localhost:8000/claims/ \
+-H "Content-Type: application/json" \
+-d '{
+  "claim_number": "123456",
+  "plan_group": "GRP-1000",
+  "subscriber_number": "3730189502",
+  "procedures": [
+    {
+      "service_date": "2024-10-29T10:00:00",
+      "submitted_procedure": "D0120",
+      "provider_npi": "1497775530",
+      "provider_fees": 100.0,
+      "allowed_fees": 80.0,
+      "member_coinsurance": 10.0,
+      "member_copay": 5.0
+    }
+  ]
+}'
+Response:
+
+Status Code: 200 OK
+Body: claim_id (UUID string)
+Retrieve Top 10 Provider NPIs
+
+Endpoint:
+
+GET /claims/top-npis/
+
+Description:
+
+Retrieves the top 10 provider NPIs ranked by net fees generated.
+
+Headers:
+
+accept: application/json
+cURL Example:
+
+bash
+Copy code
+curl -X GET http://localhost:8000/claims/top-npis/ -H "accept: application/json"
+Response:
+
+Status Code: 200 OK
+Body: JSON array of top 10 provider NPIs with their corresponding net fees.
+Testing Strategy
+
+Instead of traditional end-to-end (e2e) tests, the testing strategy involves:
+
+Manual Testing Using cURL:
+
+Submit a Claim:
+bash
+Copy code
+curl -X POST http://localhost:8000/claims/ \
+-H "Content-Type: application/json" \
+-d '{
+  "claim_number": "123456",
+  "plan_group": "GRP-1000",
+  "subscriber_number": "3730189502",
+  "procedures": [
+    {
+      "service_date": "2024-10-29T10:00:00",
+      "submitted_procedure": "D0120",
+      "provider_npi": "1497775530",
+      "provider_fees": 100.0,
+      "allowed_fees": 80.0,
+      "member_coinsurance": 10.0,
+      "member_copay": 5.0
+    }
+  ]
+}'
+Retrieve Top 10 Provider NPIs:
+bash
+Copy code
+curl -X GET http://localhost:8000/claims/top-npis/ -H "accept: application/json"
+Automated Testing with Pytest:
+
+Run automated tests to ensure the API endpoints function correctly and validate the database state after submitting claims.
+Command:
+
+bash
+Copy code
+docker compose run app pytest --asyncio-mode=auto --cov=app tests/
+Project Structure
+
+css
+Copy code
+claim_process/
+├── app/
+│   ├── main.py
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   └── claim.py
+│   ├── tasks.py
+│   ├── models.py
+│   ├── schemas/
+│   │   └── procedure.py
+│   └── db/
+│       └── connection.py
+├── tests/
+│   ├── test_e2e.py
+│   └── test_minimal_worker.py
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── README.md
+Assumptions
+
+Payments Service Communication:
+Communication between Claim Process and Payments services is handled via asynchronous background tasks using ARQ and Redis.
+In case of failures, tasks are retried up to a maximum number of attempts before being moved to a dead-letter queue.
+The system is designed to handle multiple instances of services concurrently to manage high volumes of claims.
+Data Consistency:
+All fields except “quadrant” are mandatory.
+Procedures are validated for correct formats before processing.

@@ -1,0 +1,26 @@
+{
+    "claim_number": "123456",
+    "plan_group": "GRP-1000",
+    "subscriber_number": "3730189502",
+    "procedures": [
+        {
+            "service_date": "2024-10-29T00:00:00",
+            "submitted_procedure": "D0120",
+            "quadrant": null,
+            "provider_npi": "1497775530",
+            "provider_fees": 100.0,
+            "allowed_fees": 80.0,
+            "member_coinsurance": 10.0,
+            "member_copay": 5.0
+        },
+        {
+            "service_date": "2024-10-29T00:00:00",
+            "submitted_procedure": "D0210",
+            "provider_npi": "1497775530",
+            "provider_fees": 150.0,
+            "allowed_fees": 120.0,
+            "member_coinsurance": 15.0,
+            "member_copay": 5.0
+        }
+    ]
+}
